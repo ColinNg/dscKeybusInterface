@@ -38,23 +38,38 @@
 
 #include <ESP8266WiFi.h>
 #include <dscKeybusInterface.h>
+#include "Secrets.h"
+
+/*
+ * Define the following in a Secrets.h file in the same folder as this .ino file. 
+ *
 
 const char* wifiSSID = "";
 const char* wifiPassword = "";
 
 // Twilio SMS Settings
-const char* AccountSID = "";	// Set the access token generated in the Twilio account settings
-const char* AuthToken = "";		// 
-const char* Base64EncodedAuth = "";	// echo -n "[AccountSID]:[AuthToken]" | openssl base64 -base64
-const char* From = "";	// i.e. 16041234567
-const char* To = "";		// i.e. 16041234567
+// Set the access token generated in the Twilio account settings
+const char* AccountSID = "";
+const char* AuthToken = "";
+// echo -n "[AccountSID]:[AuthToken]" | openssl base64 -base64
+const char* Base64EncodedAuth = "";
+// i.e. 16046707979
+const char* From = "";
+// i.e. 16041234567
+const char* To = "";
+
+ */
+
 
 WiFiClientSecure pushClient;
 
 // Configures the Keybus interface with the specified pins.
-#define dscClockPin D1  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
-#define dscReadPin D2   // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
-dscKeybusInterface dsc(dscClockPin, dscReadPin);
+#define dscClockPin 14  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
+#define dscReadPin 12   // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
+// If the hardware Write pin is connected, you must specify it below, even if you do not plan to write. 
+// Otherwise it will cause system faults and attached keypads will beep nonstop. 
+#define dscWritePin 13  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
+dscKeybusInterface dsc(dscClockPin, dscReadPin, dscWritePin);
 
 
 void setup() {
