@@ -149,7 +149,46 @@ void loop() {
         if (dsc.fire[partition]) sendPush(pushMessage);
         else sendPush("Security system fire alarm restored");
       }
+
+      if (dsc.armedChanged[partition]) {
+        dsc.armedChanged[partition] = false;  // Resets the armed status flag
+
+        char pushMessage[42] = "Security system armed, partition ";
+        char partitionNumber[2];
+        itoa(partition + 1, partitionNumber, 10);
+        strcat(pushMessage, partitionNumber);        
+
+        if (dsc.armed[partition])
+        {
+          strcat(pushMessage, "       ");
+          sendPush(pushMessage);
+        }
+        else if (dsc.armedAway[partition])
+        {
+          strcat(pushMessage, " (Away)");
+          sendPush(pushMessage);
+        }
+        else if (dsc.armedStay[partition]) 
+        {
+          strcat(pushMessage, " (Stay)");
+          sendPush(pushMessage);
+        }
+        else sendPush("Security system disarmed");
+      }
     }
+
+    printTimestamp();
+    Serial.print(" ");
+    dsc.printPanelCommand();
+    Serial.print(" ");
+    dsc.printPanelMessage();
+    Serial.println();
+    }
+  else if (dsc.handleModule()) {
+    printTimestamp();
+    Serial.print(" ");
+    dsc.printModuleMessage();
+    Serial.println();    
   }
 }
 
@@ -217,4 +256,16 @@ bool sendPush(const char* pushMessage) {
   }
 }
 
+
+// Prints a timestamp in seconds (with 2 decimal precision) - this is useful to determine when
+// the panel sends a group of messages immediately after each other due to an event.
+void printTimestamp() {
+  float timeStamp = millis() / 1000.0;
+  if (timeStamp < 10) Serial.print("    ");
+  else if (timeStamp < 100) Serial.print("   ");
+  else if (timeStamp < 1000) Serial.print("  ");
+  else if (timeStamp < 10000) Serial.print(" ");
+  Serial.print(timeStamp, 2);
+  Serial.print(F(":"));
+}
 
