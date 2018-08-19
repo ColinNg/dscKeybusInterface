@@ -71,6 +71,7 @@ WiFiClientSecure pushClient;
 #define dscWritePin 13  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
 dscKeybusInterface dsc(dscClockPin, dscReadPin, dscWritePin);
 
+const char* PushMessagePrefix = "Security system ";
 
 void setup() {
   Serial.begin(115200);
@@ -110,23 +111,23 @@ void loop() {
 
     if (dsc.keypadFireAlarm) {
       dsc.keypadFireAlarm = false;  // Resets the keypad fire alarm status flag
-      sendPush("Security system fire alarm button pressed");
+      sendPush(PushMessagePrefix, "fire alarm button pressed");
     }
 
     if (dsc.keypadAuxAlarm) {
       dsc.keypadAuxAlarm = false;  // Resets the keypad auxiliary alarm status flag
-      sendPush("Security system aux alarm button pressed");
+      sendPush(PushMessagePrefix, "aux alarm button pressed");
     }
 
     if (dsc.keypadPanicAlarm) {
       dsc.keypadPanicAlarm = false;  // Resets the keypad panic alarm status flag
-      sendPush("Security system panic alarm button pressed");
+      sendPush(PushMessagePrefix, "panic alarm button pressed");
     }
 
     if (dsc.powerChanged) {
       dsc.powerChanged = false;  // Resets the battery trouble status flag
-      if (dsc.powerTrouble) sendPush("Security system AC power trouble");
-      else sendPush("Security system AC power restored");
+      if (dsc.powerTrouble) sendPush(PushMessagePrefix, "AC power trouble");
+      else sendPush(PushMessagePrefix, "AC power restored");
     }
 
     // Checks status per partition
@@ -135,31 +136,31 @@ void loop() {
       if (dsc.alarmChanged[partition]) {
         dsc.alarmChanged[partition] = false;  // Resets the partition alarm status flag
 
-        char pushMessage[38] = "Security system in alarm, partition ";
+        char pushMessage[22] = "in alarm, partition ";
         char partitionNumber[2];
         itoa(partition + 1, partitionNumber, 10);
         strcat(pushMessage, partitionNumber);
 
-        if (dsc.alarm[partition]) sendPush(pushMessage);
-        else sendPush("Security system disarmed after alarm");
+        if (dsc.alarm[partition]) sendPush(PushMessagePrefix, pushMessage);
+        else sendPush(PushMessagePrefix, "disarmed after alarm");
       }
 
       if (dsc.fireChanged[partition]) {
         dsc.fireChanged[partition] = false;  // Resets the fire status flag
 
-        char pushMessage[40] = "Security system fire alarm, partition ";
+        char pushMessage[24] = "fire alarm, partition ";
         char partitionNumber[2];
         itoa(partition + 1, partitionNumber, 10);
         strcat(pushMessage, partitionNumber);
 
-        if (dsc.fire[partition]) sendPush(pushMessage);
-        else sendPush("Security system fire alarm restored");
+        if (dsc.fire[partition]) sendPush(PushMessagePrefix, pushMessage);
+        else sendPush(PushMessagePrefix, "fire alarm restored");
       }
 
       if (dsc.armedChanged[partition]) {
         dsc.armedChanged[partition] = false;  // Resets the armed status flag
 
-        char pushMessage[42] = "Security system armed, partition ";
+        char pushMessage[29] = "armed, partition ";
         char partitionNumber[2];
         itoa(partition + 1, partitionNumber, 10);
         strcat(pushMessage, partitionNumber);        
@@ -167,19 +168,24 @@ void loop() {
         if (dsc.armed[partition])
         {
           strcat(pushMessage, "       ");
-          sendPush(pushMessage);
+          sendPush(PushMessagePrefix, pushMessage);
         }
         else if (dsc.armedAway[partition])
         {
           strcat(pushMessage, " (Away)");
-          sendPush(pushMessage);
+          sendPush(PushMessagePrefix, pushMessage);
         }
         else if (dsc.armedStay[partition]) 
         {
           strcat(pushMessage, " (Stay)");
-          sendPush(pushMessage);
+          sendPush(PushMessagePrefix, pushMessage);
         }
-        else sendPush("Security system disarmed");
+        else
+        {
+          pushMessage = "disarmed, partition ";
+          strcat(pushMessage, partitionNumber);
+          sendPush(PushMessagePrefix, pushMessage);
+        }
       }
     }
 
@@ -199,8 +205,9 @@ void loop() {
 }
 
 
-bool sendPush(const char* pushMessage) {
+bool sendPush(const char* prefix, const char* pushMessage) {
   Serial.print("Pushing message:");
+  Serial.print(prefix);
   Serial.println(pushMessage);
 
   // Connects and sends the message as x-www-form-urlencoded
@@ -215,7 +222,7 @@ bool sendPush(const char* pushMessage) {
   pushClient.println(F("Accept: */*"));
   pushClient.println(F("Content-Type: application/x-www-form-urlencoded"));
   pushClient.print(F("Content-Length: "));
-  pushClient.println(strlen(To) + strlen(From) + strlen(pushMessage) + 18);  // Length including data
+  pushClient.println(strlen(To) + strlen(From) + strlen(prefix) + strlen(pushMessage) + 18);  // Length including data
   pushClient.println("Connection: Close");
   pushClient.println();
   pushClient.print(F("To=+"));
@@ -223,6 +230,7 @@ bool sendPush(const char* pushMessage) {
   pushClient.print(F("&From=+"));
   pushClient.print(From);
   pushClient.print(F("&Body="));
+  pushClient.print(prefix);
   pushClient.println(pushMessage);
 
   // Waits for a response
