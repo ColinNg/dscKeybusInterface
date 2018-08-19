@@ -34,7 +34,7 @@
  *  https://github.com/taligentx/dscKeybusInterface
  *
  *  This example code is in the public domain.
- */
+*/
 
 #include <ESP8266WiFi.h>
 #include <dscKeybusInterface.h>
@@ -44,21 +44,48 @@
  * Define the following in a Secrets.h file in the same folder as this .ino file. 
  *
 
-const char* wifiSSID = "";
-const char* wifiPassword = "";
+  const char* wifiSSID = "";
+  const char* wifiPassword = "";
 
-// Twilio SMS Settings
-// Set the access token generated in the Twilio account settings
-const char* AccountSID = "";
-const char* AuthToken = "";
-// echo -n "[AccountSID]:[AuthToken]" | openssl base64 -base64
-const char* Base64EncodedAuth = "";
-// i.e. 16046707979
-const char* From = "";
-// i.e. 16041234567
-const char* To = "";
+  // Twilio SMS Settings
+  // Set the access token generated in the Twilio account settings
+  const char* AccountSID = "";
+  const char* AuthToken = "";
+  // echo -n "[AccountSID]:[AuthToken]" | openssl base64 -base64
+  const char* Base64EncodedAuth = "";
+  // i.e. 16046707979
+  const char* From = "";
+  // i.e. 16041234567
+  const char* To = "";
 
- */
+*/
+
+// WiFi Manager
+// https://github.com/tzapu/WiFiManager
+#include <DNSServer.h>            //Local DNS Server used for redirecting all requests to the configuration portal
+#include <ESP8266WebServer.h>     //Local WebServer used to serve the configuration portal
+#include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
+
+
+// ESP8266 OTA
+// https://esp8266.github.io/Arduino/versions/2.0.0/doc/ota_updates/ota_updates.html
+#include <ESP8266mDNS.h>
+#include <WiFiUdp.h>
+#include <FS.h>
+#include <ArduinoOTA.h>
+
+/**
+   @brief mDNS and OTA Constants
+   @{
+*/
+#define HOSTNAME "ESP8266-OTA-" ///< Hostname. The setup function adds the Chip ID at the end.
+/// @}
+
+/// Uncomment the next line for verbose output over UART.
+//#define SERIAL_VERBOSE
+
+#define AP_NAME "DSC Setup"
+#define AP_PASSWORD "DSCSetup8266"
 
 
 WiFiClientSecure pushClient;
@@ -66,8 +93,8 @@ WiFiClientSecure pushClient;
 // Configures the Keybus interface with the specified pins.
 #define dscClockPin 14  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
 #define dscReadPin 12   // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
-// If the hardware Write pin is connected, you must specify it below, even if you do not plan to write. 
-// Otherwise it will cause system faults and attached keypads will beep nonstop. 
+// If the hardware Write pin is connected, you must specify it below, even if you do not plan to write.
+// Otherwise it will cause system faults and attached keypads will beep nonstop.
 #define dscWritePin 13  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
 dscKeybusInterface dsc(dscClockPin, dscReadPin, dscWritePin);
 
@@ -76,12 +103,45 @@ const char* PushMessagePrefix = "Security system ";
 void setup() {
   Serial.begin(115200);
   Serial.println();
+
+  Serial.println(F("Starting WiFi Manager"));
+
+  // Start WiFi Manager
+  WiFiManager wifiManager;
+  wifiManager.autoConnect(AP_NAME, AP_PASSWORD);
+
+  delay(100);
+
+  Serial.print("Chip ID: 0x");
+  Serial.println(ESP.getChipId(), HEX);
+
+  // Set Hostname.
+  String hostname(HOSTNAME);
+  hostname += String(ESP.getChipId(), HEX);
+  WiFi.hostname(hostname);
+
+  // Print hostname.
+  Serial.println("Hostname: " + hostname);
+
+
+  // ... Give ESP 10 seconds to connect to station.
+  unsigned long startTime = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - startTime < 10000) {
+    Serial.write('.');
+    //Serial.print(WiFi.status());
+    delay(250);
+  }
   Serial.println();
 
-  WiFi.begin(wifiSSID, wifiPassword);
-  while (WiFi.status() != WL_CONNECTED) delay(100);
-  Serial.print(F("WiFi connected: "));
+  // ... print IP Address
+  Serial.print(F("WiFi connected, IP address: "));
   Serial.println(WiFi.localIP());
+
+  // Start OTA server.
+  Serial.println(F("Starting OTA server."));
+  ArduinoOTA.setHostname((const char *)hostname.c_str());
+  ArduinoOTA.begin();
+
 
   // Sends a push notification on startup to verify connectivity
   if (sendPush(PushMessagePrefix, "initializing")) Serial.println(F("Initialization push notification sent successfully."));
@@ -98,7 +158,7 @@ void loop() {
 
   // Reads from serial input and writes to the Keybus as a virtual keypad
   if (Serial.available() > 0 && dsc.writeReady) {
-      dsc.write(Serial.read());
+    dsc.write(Serial.read());
   }
 
   if (dsc.handlePanel() && dsc.statusChanged) {  // Processes data only when a valid Keybus command has been read
@@ -163,7 +223,7 @@ void loop() {
         char pushMessage[29] = "armed, partition ";
         char partitionNumber[2];
         itoa(partition + 1, partitionNumber, 10);
-        strcat(pushMessage, partitionNumber);        
+        strcat(pushMessage, partitionNumber);
 
         if (dsc.armed[partition])
         {
@@ -175,7 +235,7 @@ void loop() {
           strcat(pushMessage, " (Away)");
           sendPush(PushMessagePrefix, pushMessage);
         }
-        else if (dsc.armedStay[partition]) 
+        else if (dsc.armedStay[partition])
         {
           strcat(pushMessage, " (Stay)");
           sendPush(PushMessagePrefix, pushMessage);
@@ -195,18 +255,23 @@ void loop() {
     Serial.print(" ");
     dsc.printPanelMessage();
     Serial.println();
-    }
+  }
   else if (dsc.handleModule()) {
     printTimestamp();
     Serial.print(" ");
     dsc.printModuleMessage();
-    Serial.println();    
+    Serial.println();
   }
+
+  // Handle OTA server.
+  ArduinoOTA.handle();
+  yield();
+  
 }
 
 
 bool sendPush(const char* prefix, const char* pushMessage) {
-  Serial.print("Pushing message:");
+  Serial.print(F("Pushing message: "));
   Serial.print(prefix);
   Serial.println(pushMessage);
 
