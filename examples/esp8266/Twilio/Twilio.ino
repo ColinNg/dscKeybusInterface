@@ -84,7 +84,7 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   // Sends a push notification on startup to verify connectivity
-  if (sendPush("Security system initializing")) Serial.println(F("Initialization push notification sent successfully."));
+  if (sendPush(PushMessagePrefix, "initializing")) Serial.println(F("Initialization push notification sent successfully."));
   else Serial.println(F("Initialization push notification failed to send."));
 
   // Starts the Keybus interface
@@ -182,7 +182,7 @@ void loop() {
         }
         else
         {
-          pushMessage = "disarmed, partition ";
+          char pushMessage[29] = "disarmed, partition ";
           strcat(pushMessage, partitionNumber);
           sendPush(PushMessagePrefix, pushMessage);
         }
@@ -223,7 +223,7 @@ bool sendPush(const char* prefix, const char* pushMessage) {
   pushClient.println(F("Content-Type: application/x-www-form-urlencoded"));
   pushClient.print(F("Content-Length: "));
   pushClient.println(strlen(To) + strlen(From) + strlen(prefix) + strlen(pushMessage) + 18);  // Length including data
-  pushClient.println("Connection: Close");
+  pushClient.println(F("Connection: Close"));
   pushClient.println();
   pushClient.print(F("To=+"));
   pushClient.print(To);
