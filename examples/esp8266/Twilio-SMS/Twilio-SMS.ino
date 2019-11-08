@@ -54,10 +54,6 @@
 #ifndef SECRETS
   #define SECRETS
 
-// WiFi settings
-const char* wifiSSID = "";
-const char* wifiPassword = "";
-
 // Twilio settings
 const char* AccountSID = "";	// Set the account SID from the Twilio Account Dashboard
 const char* AuthToken = "";		// Set the auth token from the Twilio Account Dashboard
@@ -71,6 +67,34 @@ const char* To = "";		// i.e. 16041234567
  * End Secrets.h
  */
  
+// WiFi Manager
+// https://github.com/tzapu/WiFiManager
+#include <DNSServer.h>            //Local DNS Server used for redirecting all requests to the configuration portal
+#include <ESP8266WebServer.h>     //Local WebServer used to serve the configuration portal
+#include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
+
+
+// ESP8266 OTA
+// https://esp8266.github.io/Arduino/versions/2.0.0/doc/ota_updates/ota_updates.html
+#include <ESP8266mDNS.h>
+#include <WiFiUdp.h>
+#include <FS.h>
+#include <ArduinoOTA.h>
+
+/**
+   @brief mDNS and OTA Constants
+   @{
+*/
+#define HOSTNAME "ESP8266-OTA-" ///< Hostname. The setup function adds the Chip ID at the end.
+/// @}
+
+/// Uncomment the next line for verbose output over UART.
+//#define SERIAL_VERBOSE
+
+#define AP_NAME "DSC Setup"
+#define AP_PASSWORD "DSCSetup8266"
+
+
 // Configures the Keybus interface with the specified pins.
 #define dscClockPin D1  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
 #define dscReadPin D2   // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
@@ -88,13 +112,46 @@ const char* PushMessagePrefix = "Security system ";
 void setup() {
   Serial.begin(115200);
   Serial.println();
+
+  Serial.println(F("Starting WiFi Manager"));
+
+  // Start WiFi Manager
+  WiFiManager wifiManager;
+  wifiManager.autoConnect(AP_NAME, AP_PASSWORD);
+
+  delay(100);
+
+  Serial.print("Chip ID: 0x");
+  Serial.println(ESP.getChipId(), HEX);
+
+  // Set Hostname.
+  String hostname(HOSTNAME);
+  hostname += String(ESP.getChipId(), HEX);
+  WiFi.hostname(hostname);
+
+  // Print hostname.
+  Serial.println("Hostname: " + hostname);
+
+
+  // ... Give ESP 10 seconds to connect to station.
+  unsigned long startTime = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - startTime < 10000) {
+    Serial.write('.');
+    //Serial.print(WiFi.status());
+    delay(250);
+  }
+
   Serial.println();
 
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(wifiSSID, wifiPassword);
-  while (WiFi.status() != WL_CONNECTED) delay(500);
-  Serial.print(F("WiFi connected: "));
+  // ... print IP Address
+  Serial.print(F("WiFi connected, IP address: "));
   Serial.println(WiFi.localIP());
+
+  // Start OTA server.
+  Serial.println(F("Starting OTA server."));
+  ArduinoOTA.setHostname((const char *)hostname.c_str());
+  ArduinoOTA.begin();
+
 
   // Sets authentication method for BearSSL in esp8266 Arduino Core 2.5.0+
   #if HAS_ESP8266_VERSION_NUMERIC
@@ -266,6 +323,11 @@ void loop() {
     dsc.printPanelMessage();
     Serial.println();
   }
+
+  // Handle OTA server.
+  ArduinoOTA.handle();
+  yield();
+  
 }
 
 
