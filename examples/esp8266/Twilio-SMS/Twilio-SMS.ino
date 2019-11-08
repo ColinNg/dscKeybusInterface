@@ -45,6 +45,14 @@
 
 #include <ESP8266WiFi.h>
 #include <dscKeybusInterface.h>
+#include "Secrets.h"
+
+/*
+ * Define the following in a Secrets.h file in the same folder as this .ino file. 
+ *
+
+#ifndef SECRETS
+  #define SECRETS
 
 // WiFi settings
 const char* wifiSSID = "";
@@ -57,12 +65,21 @@ const char* Base64EncodedAuth = "";	 // macOS/Linux terminal: $ echo -n "Account
 const char* From = "";	// i.e. 16041234567
 const char* To = "";		// i.e. 16041234567
 
+#endif
+
+ *
+ * End Secrets.h
+ */
+ 
 // Configures the Keybus interface with the specified pins.
 #define dscClockPin D1  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
 #define dscReadPin D2   // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
+// If the hardware Write pin is connected, you must specify it below, even if you do not plan to write. 
+// Otherwise it will cause system faults and attached keypads will beep nonstop. 
+#define dscWritePin D8  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
 
 // Initialize components
-dscKeybusInterface dsc(dscClockPin, dscReadPin);
+dscKeybusInterface dsc(dscClockPin, dscReadPin, dscWritePin); // remove dscWritePin if your circuit does not use it
 WiFiClientSecure pushClient;
 bool wifiConnected = false;
 
