@@ -83,6 +83,7 @@ dscKeybusInterface dsc(dscClockPin, dscReadPin, dscWritePin); // remove dscWrite
 WiFiClientSecure pushClient;
 bool wifiConnected = false;
 
+const char* PushMessagePrefix = "Security system ";
 
 void setup() {
   Serial.begin(115200);
@@ -101,7 +102,7 @@ void setup() {
   #endif
 
   // Sends a message on startup to verify connectivity
-  if (sendPush("Security system initializing")) Serial.println(F("Initialization SMS sent successfully."));
+  if (sendPush(PushMessagePrefix, "initializing")) Serial.println(F("Initialization SMS sent successfully."));
   else Serial.println(F("Initialization SMS failed to send."));
 
   // Starts the Keybus interface
@@ -146,8 +147,8 @@ void loop() {
     // Checks if the interface is connected to the Keybus
     if (dsc.keybusChanged) {
       dsc.keybusChanged = false;  // Resets the Keybus data status flag
-      if (dsc.keybusConnected) sendPush("Security system connected");
-      else sendPush("Security system disconnected");
+      if (dsc.keybusConnected) sendPush(PushMessagePrefix, "connected");
+      else sendPush(PushMessagePrefix, "disconnected");
     }
 
     // Checks status per partition
@@ -161,21 +162,21 @@ void loop() {
         dsc.armedChanged[partition] = false;  // Resets the partition armed status flag
         if (dsc.armed[partition]) {
 
-          char pushMessage[40];
+          char pushMessage[24];
           if (dsc.armedAway[partition]) {
-            strcpy(pushMessage, "Security system armed away: partition ");
+            strcpy(pushMessage, "armed away: partition ");
           }
           else if (dsc.armedStay[partition]) {
-            strcpy(pushMessage, "Security system armed stay: partition ");
+            strcpy(pushMessage, "armed stay: partition ");
           }
           appendPartition(partition, pushMessage);  // Appends the push message with the partition number
-          sendPush(pushMessage);
+          sendPush(PushMessagePrefix, pushMessage);
 
         }
         else {
-          char pushMessage[39] = "Security system disarmed: partition ";
+          char pushMessage[23] = "disarmed: partition ";
           appendPartition(partition, pushMessage);  // Appends the push message with the partition number
-          sendPush(pushMessage);
+          sendPush(PushMessagePrefix, pushMessage);
         }
       }
 
@@ -183,22 +184,22 @@ void loop() {
       if (dsc.alarmChanged[partition]) {
         dsc.alarmChanged[partition] = false;  // Resets the partition alarm status flag
 
-        char pushMessage[38] = "Security system in alarm: Partition ";
+        char pushMessage[22] = "in alarm: Partition ";
         appendPartition(partition, pushMessage);  // Appends the push message with the partition number
 
-        if (dsc.alarm[partition]) sendPush(pushMessage);
-        else sendPush("Security system disarmed after alarm");
+        if (dsc.alarm[partition]) sendPush(PushMessagePrefix, pushMessage);
+        else sendPush(PushMessagePrefix, "disarmed after alarm");
       }
 
       // Checks fire alarm status
       if (dsc.fireChanged[partition]) {
         dsc.fireChanged[partition] = false;  // Resets the fire status flag
 
-        char pushMessage[40] = "Security system fire alarm: Partition ";
+        char pushMessage[24] = "fire alarm: Partition ";
         appendPartition(partition, pushMessage);  // Appends the push message with the partition number
 
-        if (dsc.fire[partition]) sendPush(pushMessage);
-        else sendPush("Security system fire alarm restored");
+        if (dsc.fire[partition]) sendPush(PushMessagePrefix, pushMessage);
+        else sendPush(PushMessagePrefix, "fire alarm restored");
       }
     }
 
@@ -219,14 +220,14 @@ void loop() {
               char zoneNumber[3];
               itoa((zoneBit + 1 + (zoneGroup * 8)), zoneNumber, 10); // Determines the zone number
               strcat(pushMessage, zoneNumber);
-              sendPush(pushMessage);
+              sendPush("", pushMessage);
             }
             else {
               char pushMessage[33] = "Security zone alarm restored: ";
               char zoneNumber[3];
               itoa((zoneBit + 1 + (zoneGroup * 8)), zoneNumber, 10); // Determines the zone number
               strcat(pushMessage, zoneNumber);
-              sendPush(pushMessage);
+              sendPush("", pushMessage);
             }
           }
         }
@@ -236,26 +237,26 @@ void loop() {
     // Checks for AC power status
     if (dsc.powerChanged) {
       dsc.powerChanged = false;  // Resets the battery trouble status flag
-      if (dsc.powerTrouble) sendPush("Security system AC power trouble");
-      else sendPush("Security system AC power restored");
+      if (dsc.powerTrouble) sendPush(PushMessagePrefix, "AC power trouble");
+      else sendPush(PushMessagePrefix, "AC power restored");
     }
 
     // Checks for keypad fire alarm status
     if (dsc.keypadFireAlarm) {
       dsc.keypadFireAlarm = false;  // Resets the keypad fire alarm status flag
-      sendPush("Security system fire alarm button pressed");
+      sendPush(PushMessagePrefix, "fire alarm button pressed");
     }
 
     // Checks for keypad aux auxiliary alarm status
     if (dsc.keypadAuxAlarm) {
       dsc.keypadAuxAlarm = false;  // Resets the keypad auxiliary alarm status flag
-      sendPush("Security system aux alarm button pressed");
+      sendPush(PushMessagePrefix, "aux alarm button pressed");
     }
 
     // Checks for keypad panic alarm status
     if (dsc.keypadPanicAlarm) {
       dsc.keypadPanicAlarm = false;  // Resets the keypad panic alarm status flag
-      sendPush("Security system panic alarm button pressed");
+      sendPush(PushMessagePrefix, "panic alarm button pressed");
     }
     
     printTimestamp();
@@ -268,8 +269,9 @@ void loop() {
 }
 
 
-bool sendPush(const char* pushMessage) {
+bool sendPush(const char* prefix, const char* pushMessage) {
   Serial.print("Pushing message:");
+  Serial.print(prefix);
   Serial.println(pushMessage);
   
   // Connects and sends the message as x-www-form-urlencoded
@@ -284,7 +286,7 @@ bool sendPush(const char* pushMessage) {
   pushClient.println(F("Accept: */*"));
   pushClient.println(F("Content-Type: application/x-www-form-urlencoded"));
   pushClient.print(F("Content-Length: "));
-  pushClient.println(strlen(To) + strlen(From) + strlen(pushMessage) + 18);  // Length including data
+  pushClient.println(strlen(To) + strlen(From) + strlen(prefix) + strlen(pushMessage) + 18);  // Length including data
   pushClient.println("Connection: Close");
   pushClient.println();
   pushClient.print(F("To=+"));
@@ -292,6 +294,7 @@ bool sendPush(const char* pushMessage) {
   pushClient.print(F("&From=+"));
   pushClient.print(From);
   pushClient.print(F("&Body="));
+  pushClient.print(prefix);
   pushClient.println(pushMessage);
 
   // Waits for a response
