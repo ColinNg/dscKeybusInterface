@@ -270,7 +270,7 @@ void loop() {
 
 
 bool sendPush(const char* prefix, const char* pushMessage) {
-  Serial.print("Pushing message:");
+  Serial.print(F("Pushing message: "));
   Serial.print(prefix);
   Serial.println(pushMessage);
   
@@ -287,7 +287,7 @@ bool sendPush(const char* prefix, const char* pushMessage) {
   pushClient.println(F("Content-Type: application/x-www-form-urlencoded"));
   pushClient.print(F("Content-Length: "));
   pushClient.println(strlen(To) + strlen(From) + strlen(prefix) + strlen(pushMessage) + 18);  // Length including data
-  pushClient.println("Connection: Close");
+  pushClient.println(F("Connection: Close"));
   pushClient.println();
   pushClient.print(F("To=+"));
   pushClient.print(To);
