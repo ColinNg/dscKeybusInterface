@@ -91,11 +91,11 @@
 WiFiClientSecure pushClient;
 
 // Configures the Keybus interface with the specified pins.
-#define dscClockPin 14  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
-#define dscReadPin 12   // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
+#define dscClockPin 15  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
+#define dscReadPin 5   // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
 // If the hardware Write pin is connected, you must specify it below, even if you do not plan to write.
 // Otherwise it will cause system faults and attached keypads will beep nonstop.
-#define dscWritePin 13  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
+#define dscWritePin 4  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
 dscKeybusInterface dsc(dscClockPin, dscReadPin, dscWritePin);
 
 const char* PushMessagePrefix = "Security system ";
