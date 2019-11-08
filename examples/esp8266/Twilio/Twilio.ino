@@ -44,15 +44,14 @@
  * Define the following in a Secrets.h file in the same folder as this .ino file. 
  *
 
-  const char* wifiSSID = "";
-  const char* wifiPassword = "";
-
   // Twilio SMS Settings
   // Set the access token generated in the Twilio account settings
   const char* AccountSID = "";
   const char* AuthToken = "";
+  
   // echo -n "[AccountSID]:[AuthToken]" | openssl base64 -base64
   const char* Base64EncodedAuth = "";
+  
   // i.e. 16046707979
   const char* From = "";
   // i.e. 16041234567
@@ -349,4 +348,3 @@ void printTimestamp() {
   Serial.print(timeStamp, 2);
   Serial.print(F(":"));
 }
-
