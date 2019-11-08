@@ -269,7 +269,9 @@ void loop() {
 
 
 bool sendPush(const char* pushMessage) {
-
+  Serial.print("Pushing message:");
+  Serial.println(pushMessage);
+  
   // Connects and sends the message as x-www-form-urlencoded
   if (!pushClient.connect("api.twilio.com", 443)) return false;
   pushClient.print(F("POST https://api.twilio.com/2010-04-01/Accounts/"));
