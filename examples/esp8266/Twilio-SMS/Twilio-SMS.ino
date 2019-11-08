@@ -128,6 +128,11 @@ void loop() {
 
   dsc.loop();
 
+  // Reads from serial input and writes to the Keybus as a virtual keypad
+  if (Serial.available() > 0 && dsc.writeReady) {
+      dsc.write(Serial.read());
+  }
+  
   if (dsc.statusChanged) {      // Checks if the security system status has changed
     dsc.statusChanged = false;  // Reset the status tracking flag
 
