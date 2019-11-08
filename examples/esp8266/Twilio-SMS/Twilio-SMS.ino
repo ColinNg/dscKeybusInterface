@@ -252,6 +252,13 @@ void loop() {
       dsc.keypadPanicAlarm = false;  // Resets the keypad panic alarm status flag
       sendPush("Security system panic alarm button pressed");
     }
+    
+    printTimestamp();
+    Serial.print(" ");
+    dsc.printPanelCommand();
+    Serial.print(" ");
+    dsc.printPanelMessage();
+    Serial.println();
   }
 }
 
@@ -324,4 +331,17 @@ void appendPartition(byte sourceNumber, char* pushMessage) {
   char partitionNumber[2];
   itoa(sourceNumber + 1, partitionNumber, 10);
   strcat(pushMessage, partitionNumber);
+}
+
+
+// Prints a timestamp in seconds (with 2 decimal precision) - this is useful to determine when
+// the panel sends a group of messages immediately after each other due to an event.
+void printTimestamp() {
+  float timeStamp = millis() / 1000.0;
+  if (timeStamp < 10) Serial.print("    ");
+  else if (timeStamp < 100) Serial.print("   ");
+  else if (timeStamp < 1000) Serial.print("  ");
+  else if (timeStamp < 10000) Serial.print(" ");
+  Serial.print(timeStamp, 2);
+  Serial.print(F(":"));
 }
