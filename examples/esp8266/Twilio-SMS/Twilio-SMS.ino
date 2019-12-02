@@ -109,6 +109,95 @@ bool wifiConnected = false;
 
 const char* PushMessagePrefix = "Security system ";
 
+
+bool sendPush(const char* prefix, const char* pushMessage) {
+  Serial.print(F("Pushing message: "));
+  Serial.print(prefix);
+  Serial.println(pushMessage);
+  
+  // Connects and sends the message as x-www-form-urlencoded
+  if (!pushClient.connect("api.twilio.com", 443)) return false;
+  pushClient.print(F("POST https://api.twilio.com/2010-04-01/Accounts/"));
+  pushClient.print(AccountSID);
+  pushClient.println(F("/Messages.json HTTP/1.1"));
+  pushClient.print(F("Authorization: Basic "));
+  pushClient.println(Base64EncodedAuth);
+  pushClient.println(F("Host: api.twilio.com"));
+  pushClient.println(F("User-Agent: ESP8266"));
+  pushClient.println(F("Accept: */*"));
+  pushClient.println(F("Content-Type: application/x-www-form-urlencoded"));
+  pushClient.print(F("Content-Length: "));
+  pushClient.println(strlen(To) + strlen(From) + strlen(prefix) + strlen(pushMessage) + 18);  // Length including data
+  pushClient.println(F("Connection: Close"));
+  pushClient.println();
+  pushClient.print(F("To=+"));
+  pushClient.print(To);
+  pushClient.print(F("&From=+"));
+  pushClient.print(From);
+  pushClient.print(F("&Body="));
+  pushClient.print(prefix);
+  pushClient.println(pushMessage);
+
+  // Waits for a response
+  unsigned long previousMillis = millis();
+  while (!pushClient.available()) {
+    dsc.loop();
+    if (millis() - previousMillis > 3000) {
+      Serial.println(F("Connection timed out waiting for a response."));
+      pushClient.stop();
+      return false;
+    }
+    yield();
+  }
+
+  // Reads the response until the first space - the next characters will be the HTTP status code
+  while (pushClient.available()) {
+    if (pushClient.read() == ' ') break;
+  }
+
+  // Checks the first character of the HTTP status code - the message was sent successfully if the status code
+  // begins with "2"
+  char statusCode = pushClient.read();
+
+  // Successful, reads the remaining response to clear the client buffer
+  if (statusCode == '2') {
+    while (pushClient.available()) pushClient.read();
+    pushClient.stop();
+    return true;
+  }
+
+  // Unsuccessful, prints the response to serial to help debug
+  else {
+    Serial.println(F("SMS messaging error, response:"));
+    Serial.print(statusCode);
+    while (pushClient.available()) Serial.print((char)pushClient.read());
+    Serial.println();
+    pushClient.stop();
+    return false;
+  }
+}
+
+
+void appendPartition(byte sourceNumber, char* pushMessage) {
+  char partitionNumber[2];
+  itoa(sourceNumber + 1, partitionNumber, 10);
+  strcat(pushMessage, partitionNumber);
+}
+
+
+// Prints a timestamp in seconds (with 2 decimal precision) - this is useful to determine when
+// the panel sends a group of messages immediately after each other due to an event.
+void printTimestamp() {
+  float timeStamp = millis() / 1000.0;
+  if (timeStamp < 10) Serial.print("    ");
+  else if (timeStamp < 100) Serial.print("   ");
+  else if (timeStamp < 1000) Serial.print("  ");
+  else if (timeStamp < 10000) Serial.print(" ");
+  Serial.print(timeStamp, 2);
+  Serial.print(F(":"));
+}
+
+
 void setup() {
   Serial.begin(115200);
   Serial.println();
@@ -328,92 +417,4 @@ void loop() {
   ArduinoOTA.handle();
   yield();
   
-}
-
-
-bool sendPush(const char* prefix, const char* pushMessage) {
-  Serial.print(F("Pushing message: "));
-  Serial.print(prefix);
-  Serial.println(pushMessage);
-  
-  // Connects and sends the message as x-www-form-urlencoded
-  if (!pushClient.connect("api.twilio.com", 443)) return false;
-  pushClient.print(F("POST https://api.twilio.com/2010-04-01/Accounts/"));
-  pushClient.print(AccountSID);
-  pushClient.println(F("/Messages.json HTTP/1.1"));
-  pushClient.print(F("Authorization: Basic "));
-  pushClient.println(Base64EncodedAuth);
-  pushClient.println(F("Host: api.twilio.com"));
-  pushClient.println(F("User-Agent: ESP8266"));
-  pushClient.println(F("Accept: */*"));
-  pushClient.println(F("Content-Type: application/x-www-form-urlencoded"));
-  pushClient.print(F("Content-Length: "));
-  pushClient.println(strlen(To) + strlen(From) + strlen(prefix) + strlen(pushMessage) + 18);  // Length including data
-  pushClient.println(F("Connection: Close"));
-  pushClient.println();
-  pushClient.print(F("To=+"));
-  pushClient.print(To);
-  pushClient.print(F("&From=+"));
-  pushClient.print(From);
-  pushClient.print(F("&Body="));
-  pushClient.print(prefix);
-  pushClient.println(pushMessage);
-
-  // Waits for a response
-  unsigned long previousMillis = millis();
-  while (!pushClient.available()) {
-    dsc.loop();
-    if (millis() - previousMillis > 3000) {
-      Serial.println(F("Connection timed out waiting for a response."));
-      pushClient.stop();
-      return false;
-    }
-    yield();
-  }
-
-  // Reads the response until the first space - the next characters will be the HTTP status code
-  while (pushClient.available()) {
-    if (pushClient.read() == ' ') break;
-  }
-
-  // Checks the first character of the HTTP status code - the message was sent successfully if the status code
-  // begins with "2"
-  char statusCode = pushClient.read();
-
-  // Successful, reads the remaining response to clear the client buffer
-  if (statusCode == '2') {
-    while (pushClient.available()) pushClient.read();
-    pushClient.stop();
-    return true;
-  }
-
-  // Unsuccessful, prints the response to serial to help debug
-  else {
-    Serial.println(F("SMS messaging error, response:"));
-    Serial.print(statusCode);
-    while (pushClient.available()) Serial.print((char)pushClient.read());
-    Serial.println();
-    pushClient.stop();
-    return false;
-  }
-}
-
-
-void appendPartition(byte sourceNumber, char* pushMessage) {
-  char partitionNumber[2];
-  itoa(sourceNumber + 1, partitionNumber, 10);
-  strcat(pushMessage, partitionNumber);
-}
-
-
-// Prints a timestamp in seconds (with 2 decimal precision) - this is useful to determine when
-// the panel sends a group of messages immediately after each other due to an event.
-void printTimestamp() {
-  float timeStamp = millis() / 1000.0;
-  if (timeStamp < 10) Serial.print("    ");
-  else if (timeStamp < 100) Serial.print("   ");
-  else if (timeStamp < 1000) Serial.print("  ");
-  else if (timeStamp < 10000) Serial.print(" ");
-  Serial.print(timeStamp, 2);
-  Serial.print(F(":"));
 }
