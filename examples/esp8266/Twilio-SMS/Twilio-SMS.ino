@@ -96,11 +96,12 @@ const char* To = "";		// i.e. 16041234567
 
 
 // Configures the Keybus interface with the specified pins.
-#define dscClockPin D1  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
-#define dscReadPin D2   // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
+#define dscClockPin 3  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
+#define dscReadPin 1   // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
 // If the hardware Write pin is connected, you must specify it below, even if you do not plan to write. 
 // Otherwise it will cause system faults and attached keypads will beep nonstop. 
-#define dscWritePin D8  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
+#define dscWritePin 0  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
+#define inputTransistorsPin 2
 
 // Initialize components
 dscKeybusInterface dsc(dscClockPin, dscReadPin, dscWritePin); // remove dscWritePin if your circuit does not use it
@@ -111,9 +112,9 @@ const char* PushMessagePrefix = "Security system ";
 
 
 bool sendPush(const char* prefix, const char* pushMessage) {
-  Serial.print(F("Pushing message: "));
-  Serial.print(prefix);
-  Serial.println(pushMessage);
+//  Serial.print(F("Pushing message: "));
+//  Serial.print(prefix);
+//  Serial.println(pushMessage);
   
   // Connects and sends the message as x-www-form-urlencoded
   if (!pushClient.connect("api.twilio.com", 443)) return false;
@@ -143,7 +144,7 @@ bool sendPush(const char* prefix, const char* pushMessage) {
   while (!pushClient.available()) {
     dsc.loop();
     if (millis() - previousMillis > 3000) {
-      Serial.println(F("Connection timed out waiting for a response."));
+//      Serial.println(F("Connection timed out waiting for a response."));
       pushClient.stop();
       return false;
     }
@@ -168,10 +169,11 @@ bool sendPush(const char* prefix, const char* pushMessage) {
 
   // Unsuccessful, prints the response to serial to help debug
   else {
-    Serial.println(F("SMS messaging error, response:"));
-    Serial.print(statusCode);
-    while (pushClient.available()) Serial.print((char)pushClient.read());
-    Serial.println();
+//    Serial.println(F("SMS messaging error, response:"));
+//    Serial.print(statusCode);
+//    while (pushClient.available()) Serial.print((char)pushClient.read());
+//    Serial.println();
+    while (pushClient.available()) pushClient.read();
     pushClient.stop();
     return false;
   }
@@ -199,10 +201,24 @@ void printTimestamp() {
 
 
 void setup() {
-  Serial.begin(115200);
-  Serial.println();
+  // ESP01: convert Rx (GPIO3) and Tx (GPIO1) pins to GPIO, if they are being used
+  // https://arduino.stackexchange.com/questions/29938/how-to-i-make-the-tx-and-rx-pins-on-an-esp-8266-01-into-gpio-pins
+  if (dscClockPin == 1 || dscClockPin == 3) pinMode(dscClockPin, FUNCTION_3);
+  if (dscReadPin == 1 || dscReadPin == 3) pinMode(dscReadPin, FUNCTION_3);
+  if (dscWritePin == 1 || dscWritePin == 3) pinMode(dscWritePin, FUNCTION_3);
 
-  Serial.println(F("Starting WiFi Manager"));
+   // Set the write pin to LOW ASAP because because some pins default to HIGH
+   // HIGH means to short teh Green line to GND, which interferes with the alarm's bus
+  pinMode(dscWritePin, OUTPUT);
+  digitalWrite(dscWritePin, LOW);
+
+  pinMode(inputTransistorsPin, OUTPUT);
+  digitalWrite(inputTransistorsPin, HIGH);
+    
+//  Serial.begin(115200);
+//  Serial.println();
+//
+//  Serial.println(F("Starting WiFi Manager"));
 
   // Start WiFi Manager
   WiFiManager wifiManager;
@@ -210,8 +226,8 @@ void setup() {
 
   delay(100);
 
-  Serial.print("Chip ID: 0x");
-  Serial.println(ESP.getChipId(), HEX);
+//  Serial.print("Chip ID: 0x");
+//  Serial.println(ESP.getChipId(), HEX);
 
   // Set Hostname.
   String hostname(HOSTNAME);
@@ -219,25 +235,25 @@ void setup() {
   WiFi.hostname(hostname);
 
   // Print hostname.
-  Serial.println("Hostname: " + hostname);
+//  Serial.println("Hostname: " + hostname);
 
 
   // ... Give ESP 10 seconds to connect to station.
   unsigned long startTime = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - startTime < 10000) {
-    Serial.write('.');
+//    Serial.write('.');
     //Serial.print(WiFi.status());
     delay(250);
   }
 
-  Serial.println();
+//  Serial.println();
 
   // ... print IP Address
-  Serial.print(F("WiFi connected, IP address: "));
-  Serial.println(WiFi.localIP());
+//  Serial.print(F("WiFi connected, IP address: "));
+//  Serial.println(WiFi.localIP());
 
   // Start OTA server.
-  Serial.println(F("Starting OTA server."));
+//  Serial.println(F("Starting OTA server."));
   ArduinoOTA.setHostname((const char *)hostname.c_str());
   ArduinoOTA.begin();
 
@@ -248,13 +264,15 @@ void setup() {
   #endif
 
   // Sends a message on startup to verify connectivity
-  if (sendPush(PushMessagePrefix, "initializing")) Serial.println(F("Initialization SMS sent successfully."));
-  else Serial.println(F("Initialization SMS failed to send."));
+//  if (sendPush(PushMessagePrefix, "initializing")) Serial.println(F("Initialization SMS sent successfully."));
+//  else Serial.println(F("Initialization SMS failed to send."));
+
+  sendPush(PushMessagePrefix, "initializing");
 
   // Starts the Keybus interface
   dsc.begin();
 
-  Serial.println(F("DSC Keybus Interface is online."));
+//  Serial.println(F("DSC Keybus Interface is online."));
 }
 
 
@@ -262,13 +280,13 @@ void loop() {
 
   // Updates status if WiFi drops and reconnects
   if (!wifiConnected && WiFi.status() == WL_CONNECTED) {
-    Serial.println("WiFi reconnected");
+//    Serial.println("WiFi reconnected");
     wifiConnected = true;
     dsc.pauseStatus = false;
     dsc.statusChanged = true;
   }
   else if (WiFi.status() != WL_CONNECTED && wifiConnected) {
-    Serial.println("WiFi disconnected");
+//    Serial.println("WiFi disconnected");
     wifiConnected = false;
     dsc.pauseStatus = true;
   }
@@ -276,17 +294,17 @@ void loop() {
   dsc.loop();
 
   // Reads from serial input and writes to the Keybus as a virtual keypad
-  if (Serial.available() > 0 && dsc.writeReady) {
-      dsc.write(Serial.read());
-  }
+//  if (Serial.available() > 0 && dsc.writeReady) {
+//      dsc.write(Serial.read());
+//  }
   
   if (dsc.statusChanged) {      // Checks if the security system status has changed
     dsc.statusChanged = false;  // Reset the status tracking flag
-
+    
     // If the Keybus data buffer is exceeded, the sketch is too busy to process all Keybus commands.  Call
     // loop() more often, or increase dscBufferSize in the library: src/dscKeybusInterface.h
     if (dsc.bufferOverflow) {
-      Serial.println(F("Keybus buffer overflow"));
+//      Serial.println(F("Keybus buffer overflow"));
       dsc.bufferOverflow = false;
     }
 
@@ -405,12 +423,12 @@ void loop() {
       sendPush(PushMessagePrefix, "panic alarm button pressed");
     }
     
-    printTimestamp();
-    Serial.print(" ");
+//    printTimestamp();
+//    Serial.print(" ");
     dsc.printPanelCommand();
-    Serial.print(" ");
+//    Serial.print(" ");
     dsc.printPanelMessage();
-    Serial.println();
+//    Serial.println();
   }
 
   // Handle OTA server.
