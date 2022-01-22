@@ -100,8 +100,8 @@ const char* To = "";		// i.e. 16041234567
 #define dscReadPin 1   // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
 // If the hardware Write pin is connected, you must specify it below, even if you do not plan to write. 
 // Otherwise it will cause system faults and attached keypads will beep nonstop. 
-#define dscWritePin 0  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
-#define inputTransistorsPin 2
+#define dscWritePin 2  // esp8266: D1, D2, D8 (GPIO 5, 4, 15)
+#define enableTransistorsPin 0
 
 // Initialize components
 dscKeybusInterface dsc(dscClockPin, dscReadPin, dscWritePin); // remove dscWritePin if your circuit does not use it
@@ -212,8 +212,8 @@ void setup() {
   pinMode(dscWritePin, OUTPUT);
   digitalWrite(dscWritePin, LOW);
 
-  pinMode(inputTransistorsPin, OUTPUT);
-  digitalWrite(inputTransistorsPin, HIGH);
+  pinMode(enableTransistorsPin, OUTPUT);
+  digitalWrite(enableTransistorsPin, HIGH);
     
 //  Serial.begin(115200);
 //  Serial.println();
