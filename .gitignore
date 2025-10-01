@@ -1,0 +1,8 @@
+# KiCad temporary and cache files
+*.kicad_pch
+fp-info-cache
+*-backups/
+_autosave-*
+*.bak
+*.bck
+*~
