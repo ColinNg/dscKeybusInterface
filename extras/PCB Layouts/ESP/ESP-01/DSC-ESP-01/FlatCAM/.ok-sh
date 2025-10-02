@@ -1,0 +1,2 @@
+flatcam "/Users/colinng/Code/OpenSource/DSCKeybusInterface/extras/PCB Layouts/ESP/ESP-01/DSC-ESP-01/FlatCAM/DSC-ESP-01.FlatPrj"
+find /Volumes/CUBIKO -name "._*" -delete
